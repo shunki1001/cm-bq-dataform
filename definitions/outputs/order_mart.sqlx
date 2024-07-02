@@ -1,0 +1,57 @@
+config {
+    type: "incremental",
+    database: "doctor-ilcsi",
+    schema: "dm_looker_studio",
+    name: "order_mart",
+    bigquery: {
+        partitionBy: "partition_date",
+        }
+}
+
+-- pre_operations {
+--     DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
+-- }
+
+with order_including_set as(
+SELECT
+-- o.order_number,
+o.item_code,
+o.attribute1_name,
+s.comp_item_code,
+s.comp_zokusei_name,
+o.amount,
+cast(s.comp_amount as INT64)*cast(o.amount as INT64) as comp_amount,
+partition_date
+FROM ${ref('order')} o
+left join ${ref('set_item')} s
+on o.item_code = s.parent_item_code
+and o.attribute1_name = s.parent_zokusei_name
+), 
+unique_item_order as(
+select
+-- order_number,
+-- item_code as item_code_order,
+ifnull(comp_item_code, item_code) as item_code,
+ifnull(comp_zokusei_name, attribute1_name) as zokusei_name,
+ifnull(comp_amount, cast(amount as INT64)) as amount,
+partition_date
+from
+order_including_set
+)
+-- select * from unique_item_order u
+-- left join
+-- `doctor-ilcsi.dl_crossmall.logi_mapping` l
+-- on u.item_code = l.cm_item_code
+-- and u.zokusei_name = l.cm_zokusei_name
+-- where l.cm_item_code is null
+select
+l.logi_item_code,
+l.jan_code,
+sum(u.amount) as order_amount,
+u.partition_date
+from unique_item_order u
+left join
+${ref('logi_mapping')} l
+on u.item_code = l.cm_item_code
+and u.zokusei_name = l.cm_zokusei_name
+group by logi_item_code, jan_code, partition_date
