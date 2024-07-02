@@ -1,0 +1,32 @@
+config {
+    type: "incremental",
+    database: "doctor-ilcsi",
+    schema: "dwh_zaiko",
+    name: "china",
+    bigquery: {
+        partitionBy: "partition_date",
+        }
+}
+
+-- pre_operations {
+--     DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
+-- }
+
+SELECT
+int64_field_0 as record_id,
+string_field_2 as order_id,
+string_field_5 as item_id,
+CASE
+    WHEN SAFE_CAST(string_field_6 as DATE format 'YYYY-MM-DD') IS NOT NULL THEN SAFE_CAST(string_field_6 as DATE format 'YYYY-MM-DD')
+    WHEN SAFE_CAST(string_field_6 as DATE format 'YYYY/MM/DD') IS NOT NULL THEN SAFE_CAST(string_field_6 as DATE format 'YYYY/bqMM/DD')
+    ELSE NULL
+END AS send_at,
+string_field_7 as send_id,
+int64_field_14 as amount,
+string_field_15 as memo,
+string_field_16 as payment,
+current_date('Asia/Tokyo') as partition_date
+FROM ${ref("china_view")}
+where
+string_field_5 is not null
+and string_field_5 != '梱包袋'

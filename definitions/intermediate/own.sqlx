@@ -1,0 +1,23 @@
+config {
+    type: "incremental",
+    database: "doctor-ilcsi",
+    schema: "dwh_zaiko",
+    name: "own",
+    bigquery: {
+        partitionBy: "partition_date",
+        }
+}
+
+pre_operations {
+    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
+}
+
+SELECT int64_field_0 as record_id,
+string_field_1 as item_name,
+string_field_2 as item_code,
+string_field_3 as in_or_out,
+int64_field_4 as amount,
+date_field_5 as send_at,
+current_date('Asia/Tokyo') as partition_date
+FROM ${ref("own_view")}
+where string_field_2 is not null

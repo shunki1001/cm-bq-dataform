@@ -1,0 +1,45 @@
+config {
+    type: "incremental",
+    database: "doctor-ilcsi",
+    schema: "dm_looker_studio",
+    name: "zaiko_mart",
+    bigquery: {
+        partitionBy: "partition_date",
+        }
+}
+
+pre_operations {
+    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
+}
+
+with rsl_zaiko as(
+select
+l.logi_item_code, l.logi_item_title, cast(z.stock as INTEGER) as stock, z.partition_date, 'RSL' as place
+from ${ref('zaiko')} z
+left join
+${ref('logi_mapping')} l
+on z.cm_item_sku_code = l.cm_item_sku_code
+where l.logi_item_code is not null
+),
+own_zaiko as(
+    select
+    item_code as logi_item_code,
+    item_name as logi_item_title,
+    SUM(CASE WHEN in_or_out = '入庫' THEN amount
+            WHEN in_or_out = '出庫' THEN -amount
+            ELSE 0 END) AS stock,
+    partition_date,
+    '自社倉庫' as place
+    from ${ref('own')}
+    where partition_date = current_date('Asia/Tokyo')
+    group by item_code, item_name, partition_date
+),
+china_zaiko as (
+    select *
+    from ${ref('china')}
+)
+select *
+from
+(select * from rsl_zaiko
+union all
+select * from own_zaiko)
