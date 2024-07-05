@@ -29,17 +29,27 @@ own_zaiko as(
             WHEN in_or_out = '出庫' THEN -amount
             ELSE 0 END) AS stock,
     partition_date,
-    '自社倉庫' as place
+    '自社倉庫' AS place,
     from ${ref('own')}
     where partition_date = current_date('Asia/Tokyo')
     group by item_code, item_name, partition_date
 ),
 china_zaiko as (
-    select *
-    from ${ref('china')}
+    select
+    c.item_id as logi_item_code,
+    l.logi_item_title,
+    c.amount,
+    c.send_at as partition_date,
+    '中国倉庫' as place
+    from ${ref('china')} c
+    left join 
+    ${ref('logi_mapping')} l
+    on c.item_id = l.logi_item_code
 )
 select *
 from
 (select * from rsl_zaiko
 union all
-select * from own_zaiko)
+select * from own_zaiko
+union all
+select * from china_zaiko)
