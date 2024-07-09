@@ -51,7 +51,9 @@ left join
     ${ref('logi_mapping')} l
     on u.item_code = l.cm_item_code
     and u.zokusei_name = l.cm_zokusei_name
-group by logi_item_code, jan_code, partition_date),
+where u.partition_date > date(2024,7,1)
+group by logi_item_code, jan_code, partition_date
+),
 
 
 -- ネクストエンジンの受注情報を取得
@@ -65,6 +67,7 @@ ne_order as (
     left join
     ${ref('logi_mapping')} l
     on old.JAN_CODE = l.jan_code
+    where parse_date('%Y/%m/%d', old.order_at) <= date(2024,7,1)
 )
 select * from ne_order
 union all 
