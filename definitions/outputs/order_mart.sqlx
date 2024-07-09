@@ -1,5 +1,5 @@
 config {
-    type: "incremental",
+    type: "table",
     database: "doctor-ilcsi",
     schema: "dm_looker_studio",
     name: "order_mart",
@@ -8,9 +8,6 @@ config {
         }
 }
 
--- pre_operations {
---     DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
--- }
 
 with order_including_set as(
 SELECT
@@ -37,21 +34,39 @@ ifnull(comp_amount, cast(amount as INT64)) as amount,
 partition_date
 from
 order_including_set
-)
+),
 -- select * from unique_item_order u
 -- left join
 -- `doctor-ilcsi.dl_crossmall.logi_mapping` l
 -- on u.item_code = l.cm_item_code
 -- and u.zokusei_name = l.cm_zokusei_name
 -- where l.cm_item_code is null
-select
-l.logi_item_code,
-l.jan_code,
-sum(u.amount) as order_amount,
-u.partition_date
+cm_oder as (select
+    l.logi_item_code,
+    l.jan_code,
+    sum(u.amount) as order_amount,
+    u.partition_date
 from unique_item_order u
 left join
-${ref('logi_mapping')} l
-on u.item_code = l.cm_item_code
-and u.zokusei_name = l.cm_zokusei_name
-group by logi_item_code, jan_code, partition_date
+    ${ref('logi_mapping')} l
+    on u.item_code = l.cm_item_code
+    and u.zokusei_name = l.cm_zokusei_name
+group by logi_item_code, jan_code, partition_date),
+
+
+-- ネクストエンジンの受注情報を取得
+ne_order as (
+    select 
+    l.logi_item_code,
+    l.jan_code,
+    old.amount,
+    parse_date('%Y/%m/%d', old.order_at) as partition_date
+    from ${ref('old_order_info')} old
+    left join
+    ${ref('logi_mapping')} l
+    on old.JAN_CODE = l.jan_code
+)
+select * from ne_order
+union all 
+select * from cm_oder
+where logi_item_code is not null
