@@ -1,5 +1,5 @@
 config {
-    type: "incremental",
+    type: "table",
     database: "doctor-ilcsi",
     schema: "dm_looker_studio",
     name: "zaiko_mart",
@@ -8,18 +8,16 @@ config {
         }
 }
 
-pre_operations {
-    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
-}
 
 with rsl_zaiko as(
-select
-l.logi_item_code, l.logi_item_title, cast(z.stock as INTEGER) as stock, z.partition_date, 'RSL' as place
-from ${ref('zaiko')} z
-left join
-${ref('logi_mapping')} l
-on z.cm_item_sku_code = l.cm_item_sku_code
-where l.logi_item_code is not null
+    select
+        l.logi_item_code, l.logi_item_title, cast(z.stock as INTEGER) as stock, z.partition_date, 'RSL' as place
+    from ${ref('zaiko')} z
+    left join
+        ${ref('logi_mapping')} l
+        on z.cm_item_sku_code = l.cm_item_sku_code
+    where
+        l.logi_item_code is not null
 ),
 own_zaiko as(
     select
@@ -28,28 +26,56 @@ own_zaiko as(
     SUM(CASE WHEN in_or_out = '入庫' THEN amount
             WHEN in_or_out = '出庫' THEN -amount
             ELSE 0 END) AS stock,
-    partition_date,
+    send_at as partition_date,
     '自社倉庫' AS place,
-    from ${ref('own')}
+    from (
+        select
+            *, ROW_NUMBER() OVER (PARTITION BY record_id ORDER BY partition_date DESC) as row_num
+        from ${ref('own')}
+    ) subquery
     where partition_date = current_date('Asia/Tokyo')
-    group by item_code, item_name, partition_date
+    group by item_code, item_name, send_at
 ),
 china_zaiko as (
     select
-    c.item_id as logi_item_code,
-    l.logi_item_title,
-    c.amount,
-    c.send_at as partition_date,
-    '中国倉庫' as place
-    from ${ref('china')} c
+        subquery.item_id as logi_item_code,
+        l.logi_item_title,
+        subquery.amount,
+        subquery.send_at as partition_date,
+        '中国倉庫' as place
+    from(
+        select
+            *, ROW_NUMBER() OVER (PARTITION BY record_id ORDER BY partition_date DESC) as row_num
+        from ${ref('china')}
+    ) subquery
     left join 
     ${ref('logi_mapping')} l
-    on c.item_id = l.logi_item_code
+    on subquery.item_id = l.logi_item_code
+    where subquery.row_num = 1
+),
+hacchu as (
+    select
+    subquery.item_code as logi_item_code,
+    l.logi_item_title,
+    subquery.amount,
+    subquery.order_at as partition_date,
+    '発注済み' as place
+    from (
+        select
+            *, ROW_NUMBER() OVER (PARTITION BY record_id ORDER BY partition_date DESC) as row_num
+        from ${ref('hacchu')}
+    ) subquery
+    left join 
+    ${ref('logi_mapping')} l
+    on subquery.item_code = l.logi_item_code
 )
 select *
-from
-(select * from rsl_zaiko
-union all
-select * from own_zaiko
-union all
-select * from china_zaiko)
+from(
+    select * from rsl_zaiko
+        union all
+        select * from own_zaiko
+        union all
+        select * from china_zaiko
+        union all
+        select * from hacchu
+    )
