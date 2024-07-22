@@ -1,0 +1,48 @@
+config {
+    type: "incremental",
+    database: "doctor-ilcsi",
+    schema: "dm_looker_studio",
+    name: "anzen_zaiko",
+    bigquery: {
+        partitionBy: "partition_date",
+        }
+}
+
+pre_operations {
+    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')-1
+}
+
+WITH demand_stats AS (
+    SELECT
+        logi_item_code,
+        AVG(amount) AS avg_demand,
+        STDDEV_POP(amount) AS demand_std_dev
+    FROM
+        ${ref('order_mart')}
+    GROUP BY
+        logi_item_code
+),
+safety_stock as (
+SELECT
+    logi_item_code,
+    avg_demand,
+    demand_std_dev,
+    45 AS avg_lead_time,  -- リードタイムを一定に設定
+    0 AS lead_time_std_dev,  -- リードタイムの標準偏差を0に設定
+    (1.65 * SQRT(POW(demand_std_dev, 2) * 7)) AS safety_stock
+FROM
+    demand_stats
+),
+-- todo: 発注残を計算式に組み込む
+predict_order_lead_time as(
+    select
+        (s.avg_demand*45 - z.stock + s.safety_stock) as hacchu_quantity,
+        s.logi_item_code,
+        s.safety_stock
+    from safety_stock s
+    left join ${ref('zaiko_mart')} z
+    on s.logi_item_code = z.logi_item_code
+    where z.partition_date = current_date('Asia/Tokyo') - 1
+)
+select *, current_date('Asia/Tokyo') - 1 as partition_date
+from predict_order_lead_time
