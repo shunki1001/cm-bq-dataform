@@ -1,0 +1,23 @@
+config {
+    type: "table",
+    database: "doctor-ilcsi",
+    schema: "dm_looker_studio",
+    name: "order_and_zaiko",
+    bigquery: {
+        partitionBy: "partition_date",
+        }
+}
+with hikiate_order as (
+    select logi_item_code, jan_code, sum(amount) as sum_order
+    from ${ref('order_by_phase')}
+    where phase_name in ('引当待ち', '注文確認')
+    and partition_date < current_date('Asia/Tokyo')
+    group by logi_item_code, jan_code
+)
+select z.*, o.sum_order
+from ${ref('zaiko_mart')} z
+left join
+hikiate_order  o
+on o.logi_item_code = z.logi_item_code
+where z.partition_date = current_date('Asia/Tokyo') -1
+and z.place = 'RSL'
