@@ -3,13 +3,10 @@ config {
     database: "doctor-ilcsi",
     schema: "dwh_crossmall",
     name: "latest_order",
-    bigquery: {
-        partitionBy: "partition_date",
-        }
 }
 
 
-    SELECT * except(rn)
+    SELECT * except(rn, partition_date)
 FROM (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY order_number ORDER BY updated_at DESC) AS rn
