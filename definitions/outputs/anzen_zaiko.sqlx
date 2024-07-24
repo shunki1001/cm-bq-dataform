@@ -9,7 +9,7 @@ config {
 }
 
 pre_operations {
-    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')-1
+    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
 }
 
 WITH demand_stats AS (
@@ -44,5 +44,5 @@ predict_order_lead_time as(
     on s.logi_item_code = z.logi_item_code
     where z.partition_date = current_date('Asia/Tokyo') - 1
 )
-select *, current_date('Asia/Tokyo') - 1 as partition_date
+select *, current_date('Asia/Tokyo') as partition_date
 from predict_order_lead_time
