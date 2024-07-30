@@ -30,11 +30,20 @@ hikiate_order as (
     MAX(CASE WHEN phase = '発送済み' THEN sum_order ELSE NULL END) AS Phase3,
     from phase_group_order
     group by logi_item_code, jan_code
+),
+-- RSL在庫数を取得して、一意に修正。jan_codeで結合
+rsl_table as (
+    select
+    jan_code, min(stock) as stock, partition_date
+    from ${ref('rsl_zaiko')}
+    where jan_code != 'TEST'
+    group by jan_code, partition_date
 )
 
 select 
     z.logi_item_code,
-    ifnull(z.stock, 0) + ifnull(o.Phase1, 0) + ifnull(o.Phase2, 0) as rsl_stock, -- 物流在庫
+    ifnull(rsl_table.stock,0) as rsl_stock, -- 物流在庫
+    -- ifnull(z.stock, 0) + ifnull(o.Phase1, 0) + ifnull(o.Phase2, 0) as rsl_stock, -- 物流在庫
     ifnull(o.Phase2, 0) as hikiate_order, -- 引き当て済み、かつ、未発送在庫
     ifnull(o.Phase1, 0) as notyet_hikiate_order, -- 未引当注文（複数注文時の他商品が引きあたってない注文も含む）
     z.stock as available_zaiko, -- 有効在庫数
@@ -43,6 +52,9 @@ from ${ref('zaiko_mart')} z
 left join
 hikiate_order o
 on o.logi_item_code = z.logi_item_code
+left join
+rsl_table
+on o.jan_code = cast(rsl_table.jan_code as INT64)
 where
 z.partition_date = current_date('Asia/Tokyo')
 and
