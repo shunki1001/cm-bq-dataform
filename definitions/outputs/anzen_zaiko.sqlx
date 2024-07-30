@@ -42,7 +42,7 @@ predict_order_lead_time as(
     from safety_stock s
     left join ${ref('zaiko_mart')} z
     on s.logi_item_code = z.logi_item_code
-    where z.partition_date = current_date('Asia/Tokyo') - 1
+    where z.partition_date = current_date('Asia/Tokyo') 
 )
 select *, current_date('Asia/Tokyo') as partition_date
 from predict_order_lead_time
