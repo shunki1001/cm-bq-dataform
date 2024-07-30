@@ -23,9 +23,11 @@ ne_order as (
     on old.JAN_CODE = l.jan_code
     where parse_date('%Y/%m/%d', old.order_at) <= date(2024,7,1)
 ),
-cm_order as (select logi_item_code, jan_code, sum(amount) as amount, partition_date
-from ${ref('order_by_phase')}
-group by logi_item_code, jan_code, partition_date)
+cm_order as (
+    select logi_item_code, jan_code, sum(amount) as amount, partition_date
+    from ${ref('order_by_phase')}
+    group by logi_item_code, jan_code, partition_date
+)
 
 select * from ne_order
 union all

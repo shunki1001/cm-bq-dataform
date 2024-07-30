@@ -7,17 +7,43 @@ config {
         partitionBy: "partition_date",
         }
 }
-with hikiate_order as (
-    select logi_item_code, jan_code, sum(amount) as sum_order
+with group_order as (
+    select logi_item_code, jan_code, sum(amount) as sum_order, phase_name
     from ${ref('order_by_phase')}
-    where phase_name in ('引当待ち', '注文確認')
-    and partition_date < current_date('Asia/Tokyo')
+    where partition_date < current_date('Asia/Tokyo')
+    group by logi_item_code, jan_code, phase_name
+),
+phase_group_order as (
+    select 
+    * except(phase_name),
+    case
+        when phase_name in ('引当待ち', '注文確認') then '未引当て'
+        when phase_name in ('発送待ち', 'RSL出荷登録待ち', 'RSL出荷依頼待ち', 'RSL出荷エラー') then '引当て済み'
+        else '発送済み'
+    end as phase
+    from group_order
+),
+hikiate_order as (
+    select logi_item_code, jan_code,
+    MAX(CASE WHEN phase = '未引当て' THEN sum_order ELSE NULL END) AS Phase1,
+    MAX(CASE WHEN phase = '引当て済み' THEN sum_order ELSE NULL END) AS Phase2,
+    MAX(CASE WHEN phase = '発送済み' THEN sum_order ELSE NULL END) AS Phase3,
+    from phase_group_order
     group by logi_item_code, jan_code
 )
-select z.*, o.sum_order
+
+select 
+    z.logi_item_code,
+    ifnull(z.stock, 0) + ifnull(o.Phase1, 0) + ifnull(o.Phase2, 0) as rsl_stock, -- 物流在庫
+    ifnull(o.Phase2, 0) as hikiate_order, -- 引き当て済み、かつ、未発送在庫
+    ifnull(o.Phase1, 0) as notyet_hikiate_order, -- 未引当注文（複数注文時の他商品が引きあたってない注文も含む）
+    z.stock as available_zaiko, -- 有効在庫数
+    z.partition_date
 from ${ref('zaiko_mart')} z
 left join
-hikiate_order  o
+hikiate_order o
 on o.logi_item_code = z.logi_item_code
-where z.partition_date = current_date('Asia/Tokyo') -1
-and z.place = 'RSL'
+where
+z.partition_date = current_date('Asia/Tokyo')
+and
+z.place = 'RSL'
