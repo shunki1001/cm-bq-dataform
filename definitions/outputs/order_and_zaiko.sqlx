@@ -1,5 +1,5 @@
 config {
-    type: "table",
+    type: "incremental",
     database: "doctor-ilcsi",
     schema: "dm_looker_studio",
     name: "order_and_zaiko",
@@ -7,6 +7,11 @@ config {
         partitionBy: "partition_date",
         }
 }
+
+pre_operations {
+    DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
+}
+
 with group_order as (
     select logi_item_code, jan_code, sum(amount) as sum_order, phase_name
     from ${ref('order_by_phase')}
@@ -18,7 +23,7 @@ phase_group_order as (
     * except(phase_name),
     case
         when phase_name in ('引当待ち', '注文確認') then '未引当て'
-        when phase_name in ('発送待ち', 'RSL出荷登録待ち', 'RSL出荷依頼待ち', 'RSL出荷エラー') then '引当て済み'
+        when phase_name in ('発送待ち', 'RSL出荷登録待ち', 'RSL出荷依頼待ち', 'RSL出荷エラー','RSL出荷依頼済み') then '引当て済み'
         else '発送済み'
     end as phase
     from group_order
@@ -31,18 +36,27 @@ hikiate_order as (
     from phase_group_order
     group by logi_item_code, jan_code
 ),
--- RSL在庫数を取得して、一意に修正。jan_codeで結合
+-- RSL在庫数を取得して、一意に修正。jan_codeでorderテーブルに結合
 rsl_table as (
     select
     jan_code, min(stock) as stock, partition_date
     from ${ref('rsl_zaiko')}
-    where jan_code != 'TEST'
+    where jan_code != 'TEST' and partition_date = current_date('Asia/Tokyo')
     group by jan_code, partition_date
+),
+order_including_rsl as (
+    select
+        hikiate_order.*,
+        rsl_table.stock
+    from hikiate_order
+    left join
+        rsl_table
+    on hikiate_order.jan_code = cast(rsl_table.jan_code as INT64)
 )
 
 select 
     z.logi_item_code,
-    ifnull(rsl_table.stock,0) as rsl_stock, -- 物流在庫
+    ifnull(o.stock,0) as rsl_stock, -- 物流在庫
     -- ifnull(z.stock, 0) + ifnull(o.Phase1, 0) + ifnull(o.Phase2, 0) as rsl_stock, -- 物流在庫
     ifnull(o.Phase2, 0) as hikiate_order, -- 引き当て済み、かつ、未発送在庫
     ifnull(o.Phase1, 0) as notyet_hikiate_order, -- 未引当注文（複数注文時の他商品が引きあたってない注文も含む）
@@ -50,11 +64,8 @@ select
     z.partition_date
 from ${ref('zaiko_mart')} z
 left join
-hikiate_order o
+    order_including_rsl o
 on o.logi_item_code = z.logi_item_code
-left join
-rsl_table
-on o.jan_code = cast(rsl_table.jan_code as INT64)
 where
 z.partition_date = current_date('Asia/Tokyo')
 and
