@@ -68,6 +68,18 @@ hacchu as (
     left join 
     ${ref('logi_mapping')} l
     on subquery.item_code = l.logi_item_code
+),
+income as (
+    select
+    l.logi_item_code,
+    l.logi_item_title,
+    i.amount,
+    cast(i.income_at as date) as partition_date,
+    'RSL入荷' as place
+    from ${ref('latest_income')} i
+    left join
+    ${ref('logi_mapping')} l
+    on i.jan_code = cast(l.jan_code as STRING)
 )
 select *
 from(
@@ -78,4 +90,6 @@ from(
         select * from china_zaiko
         union all
         select * from hacchu
+        union all
+        select * from income
     )

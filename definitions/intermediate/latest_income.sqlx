@@ -1,0 +1,14 @@
+config {
+    type: "table",
+    database: "doctor-ilcsi",
+    schema: "dwh_crossmall",
+    name: "latest_income",
+}
+
+SELECT * except(rn, partition_date)
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY income_id, jan_code ORDER BY partition_date DESC) AS rn
+    FROM ${ref('income_info')}
+) AS subquery
+WHERE rn = 1
