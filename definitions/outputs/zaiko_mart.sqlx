@@ -53,6 +53,24 @@ china_zaiko as (
     on subquery.item_id = l.logi_item_code
     where subquery.row_num = 1
 ),
+china_zaiko_v2 as (
+    select
+        subquery.item_code as logi_item_code,
+        l.logi_item_title,
+        subquery.amount,
+        subquery.partition_date as partition_date,
+        '中国倉庫の在庫' as place
+    from(
+        select
+            *, ROW_NUMBER() OVER (PARTITION BY china_item_code ORDER BY partition_date DESC) as row_num
+        from ${ref('china_zaiko')}
+    ) subquery
+    left join 
+    ${ref('logi_mapping')} l
+    on subquery.item_code = l.logi_item_code
+    where subquery.row_num = 1
+    and l.logi_item_code is not null
+),
 hacchu as (
     select
     subquery.item_code as logi_item_code,
@@ -92,4 +110,6 @@ from(
         select * from hacchu
         union all
         select * from income
+        union all
+        select * from china_zaiko_v2
     )
