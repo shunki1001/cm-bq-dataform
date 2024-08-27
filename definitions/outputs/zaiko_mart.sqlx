@@ -9,10 +9,10 @@ config {
 }
 
 
-with 
+with
 rsl_zaiko as (
     select
-    logi_item_code,logi_item_title,stock,
+    logi_item_code,logi_item_title,rsl_stock,
     current_date('Asia/Tokyo') as partition_date,
     'RSL' AS place
     from ${ref('rsl_item_master')}
