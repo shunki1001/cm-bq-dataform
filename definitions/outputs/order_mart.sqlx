@@ -21,7 +21,9 @@ ne_order as (
     left join
     ${ref('rsl_item_master')} l
     on old.JAN_CODE = cast(l.jan_code as INTEGER)
-    where parse_date('%Y/%m/%d', old.order_at) <= date(2024,7,1)
+    where
+    parse_date('%Y/%m/%d', old.order_at) <= date(2024,7,1)
+    and l.jan_code != "TEST"
 ),
 cm_order as (
     select logi_item_code, jan_code, sum(amount) as amount, partition_date

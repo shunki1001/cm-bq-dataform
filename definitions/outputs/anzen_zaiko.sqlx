@@ -36,7 +36,11 @@ FROM
 -- todo: 発注残を計算式に組み込む
 predict_order_lead_time as(
     select
-        (s.avg_demand*45 - z.stock + s.safety_stock) as hacchu_quantity,
+        if(
+            (s.avg_demand*45 - z.stock + s.safety_stock) < 0,
+            0,
+            (s.avg_demand*45 - z.stock + s.safety_stock)
+        ) as hacchu_quantity,
         s.logi_item_code,
         s.safety_stock
     from safety_stock s
