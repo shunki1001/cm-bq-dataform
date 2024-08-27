@@ -14,13 +14,13 @@ with
 ne_order as (
     select 
     l.logi_item_code,
-    l.jan_code,
+    cast(l.jan_code as INTEGER) as jan_code,
     old.amount,
     parse_date('%Y/%m/%d', old.order_at) as partition_date
     from ${ref('old_order_info')} old
     left join
-    ${ref('logi_mapping')} l
-    on old.JAN_CODE = l.jan_code
+    ${ref('rsl_item_master')} l
+    on old.JAN_CODE = cast(l.jan_code as INTEGER)
     where parse_date('%Y/%m/%d', old.order_at) <= date(2024,7,1)
 ),
 cm_order as (

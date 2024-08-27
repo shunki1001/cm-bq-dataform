@@ -45,10 +45,10 @@ select
 from unique_item_order u
 left join
     (select
-        * except(cm_zokusei_name), ifnull(cm_zokusei_name, 'None') as cm_zokusei_name
-    from ${ref('logi_mapping')}) l
+        * except(cm_item_zokusei_name1), ifnull(cm_item_zokusei_name1, 'None') as cm_zokusei_name
+    from ${ref('rsl_item_master')}) l
     on u.item_code = l.cm_item_code
-    and u.zokusei_name = l.cm_zokusei_name
+    and u.zokusei_name = l.cm_item_zokusei_name1
 where u.order_at > date(2024,6,1)
 )
 select * except(amount),

@@ -9,15 +9,13 @@ config {
 }
 
 
-with rsl_zaiko as(
+with 
+rsl_zaiko as (
     select
-        l.logi_item_code, l.logi_item_title, cast(z.stock as INTEGER) as stock, z.partition_date, 'RSL' as place
-    from ${ref('zaiko')} z
-    left join
-        ${ref('logi_mapping')} l
-        on z.cm_item_sku_code = l.cm_item_sku_code
-    where
-        l.logi_item_code is not null
+    logi_item_code,logi_item_title,stock,
+    current_date('Asia/Tokyo') as partition_date,
+    'RSL' AS place
+    from ${ref('rsl_item_master')}
 ),
 own_zaiko as(
     select
@@ -49,7 +47,7 @@ china_zaiko as (
         from ${ref('china')}
     ) subquery
     left join 
-    ${ref('logi_mapping')} l
+    ${ref('rsl_item_master')} l
     on subquery.item_id = l.logi_item_code
     where subquery.row_num = 1
 ),
@@ -66,7 +64,7 @@ china_zaiko_v2 as (
         from ${ref('china_zaiko')}
     ) subquery
     left join 
-    ${ref('logi_mapping')} l
+    ${ref('rsl_item_master')} l
     on subquery.item_code = l.logi_item_code
     where subquery.row_num = 1
     and l.logi_item_code is not null
@@ -84,7 +82,7 @@ hacchu as (
         from ${ref('hacchu')}
     ) subquery
     left join 
-    ${ref('logi_mapping')} l
+    ${ref('rsl_item_master')} l
     on subquery.item_code = l.logi_item_code
 ),
 income as (
@@ -96,12 +94,12 @@ income as (
     'RSL入荷' as place
     from ${ref('latest_income')} i
     left join
-    ${ref('logi_mapping')} l
+    ${ref('rsl_item_master')} l
     on i.jan_code = cast(l.jan_code as STRING)
 )
 select *
 from(
-    select * from rsl_zaiko
+        select * from rsl_zaiko
         union all
         select * from own_zaiko
         union all

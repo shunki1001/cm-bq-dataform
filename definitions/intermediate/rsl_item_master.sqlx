@@ -1,0 +1,14 @@
+config {
+    type: "table",
+    database: "doctor-ilcsi",
+    schema: "dwh_crossmall",
+    name: "rsl_item_master"
+}
+
+SELECT * except(rn, updated_at, partition_date)
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY logi_item_code ORDER BY partition_date DESC) AS rn
+    FROM ${ref('rsl_zaiko_from_cm')}
+) AS subquery
+WHERE rn = 1

@@ -39,18 +39,17 @@ hikiate_order as (
 -- RSL在庫数を取得して、一意に修正。jan_codeでorderテーブルに結合
 rsl_table as (
     select
-    jan_code, min(stock) as stock, partition_date
-    from ${ref('rsl_zaiko')}
-    where jan_code != 'TEST' and partition_date = current_date('Asia/Tokyo')
-    group by jan_code, partition_date
+    jan_code, stock, current_date('Asia/Tokyo') as partition_date
+    from ${ref('rsl_item_master')}
+    where jan_code != 'TEST'
 ),
 order_including_rsl as (
     select
         hikiate_order.*,
         rsl_table.stock
-    from hikiate_order
+    from rsl_table
     left join
-        rsl_table
+        hikiate_order
     on hikiate_order.jan_code = cast(rsl_table.jan_code as INT64)
 )
 
