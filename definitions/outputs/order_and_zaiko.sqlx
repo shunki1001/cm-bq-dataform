@@ -36,37 +36,30 @@ hikiate_order as (
     from phase_group_order
     group by logi_item_code, jan_code
 ),
--- RSL在庫数を取得して、一意に修正。jan_codeでorderテーブルに結合
+-- RSL在庫数を取得。
 rsl_table as (
     select
-    jan_code, min(stock) as stock, partition_date
-    from ${ref('rsl_zaiko')}
-    where jan_code != 'TEST' and partition_date = current_date('Asia/Tokyo')
-    group by jan_code, partition_date
+    logi_item_code, jan_code, cm_stock, rsl_stock, current_date('Asia/Tokyo') as partition_date
+    from ${ref('rsl_item_master')}
+    where jan_code != 'TEST'
 ),
 order_including_rsl as (
     select
-        hikiate_order.*,
-        rsl_table.stock
-    from hikiate_order
+        rsl_table.*,
+        hikiate_order.* except(jan_code, logi_item_code)
+    from rsl_table
     left join
-        rsl_table
+        hikiate_order
     on hikiate_order.jan_code = cast(rsl_table.jan_code as INT64)
 )
-
-select 
-    z.logi_item_code,
-    ifnull(o.stock,0) as rsl_stock, -- 物流在庫
+select
+    logi_item_code,
+    ifnull(rsl_stock,0) as rsl_stock, -- 物流在庫
     -- ifnull(z.stock, 0) + ifnull(o.Phase1, 0) + ifnull(o.Phase2, 0) as rsl_stock, -- 物流在庫
-    ifnull(o.Phase2, 0) as hikiate_order, -- 引き当て済み、かつ、未発送在庫
-    ifnull(o.Phase1, 0) as notyet_hikiate_order, -- 未引当注文（複数注文時の他商品が引きあたってない注文も含む）
-    z.stock as available_zaiko, -- 有効在庫数
-    z.partition_date
-from ${ref('zaiko_mart')} z
-left join
-    order_including_rsl o
-on o.logi_item_code = z.logi_item_code
+    ifnull(Phase2, 0) as hikiate_order, -- 引き当て済み、かつ、未発送在庫
+    ifnull(Phase1, 0) as notyet_hikiate_order, -- 未引当注文（複数注文時の他商品が引きあたってない注文も含む）
+    cm_stock as available_zaiko, -- 有効在庫数
+    partition_date
+from order_including_rsl
 where
-z.partition_date = current_date('Asia/Tokyo')
-and
-z.place = 'RSL'
+partition_date = current_date('Asia/Tokyo')
