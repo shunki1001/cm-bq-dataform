@@ -14,7 +14,7 @@ with
 ne_order as (
     select 
     l.logi_item_code,
-    cast(l.jan_code as INTEGER) as jan_code,
+    l.jan_code,
     old.amount,
     parse_date('%Y/%m/%d', old.order_at) as partition_date
     from ${ref('old_order_info')} old

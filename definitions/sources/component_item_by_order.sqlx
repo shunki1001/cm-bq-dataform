@@ -2,5 +2,5 @@ config {
   type: "declaration",
   database: "doctor-ilcsi",
   schema: "dl_crossmall",
-  name: "set_item",
+  name: "component_item_by_order",
 }

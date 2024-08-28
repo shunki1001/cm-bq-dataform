@@ -12,13 +12,13 @@ pre_operations {
     DELETE ${self()} where partition_date = current_date('Asia/Tokyo')
 }
 
-with group_order as (
-    select logi_item_code, jan_code, sum(amount) as sum_order, phase_name
+with order_by_each_phase as (
+    select
+    logi_item_code, jan_code, phase_name, sum(amount) as amount
     from ${ref('order_by_phase')}
-    where partition_date < current_date('Asia/Tokyo')
     group by logi_item_code, jan_code, phase_name
 ),
-phase_group_order as (
+order_by_phase as (
     select 
     * except(phase_name),
     case
@@ -26,14 +26,14 @@ phase_group_order as (
         when phase_name in ('発送待ち', 'RSL出荷登録待ち', 'RSL出荷依頼待ち', 'RSL出荷エラー','RSL出荷依頼済み') then '引当て済み'
         else '発送済み'
     end as phase
-    from group_order
+    from order_by_each_phase
 ),
 hikiate_order as (
     select logi_item_code, jan_code,
-    MAX(CASE WHEN phase = '未引当て' THEN sum_order ELSE NULL END) AS Phase1,
-    MAX(CASE WHEN phase = '引当て済み' THEN sum_order ELSE NULL END) AS Phase2,
-    MAX(CASE WHEN phase = '発送済み' THEN sum_order ELSE NULL END) AS Phase3,
-    from phase_group_order
+    MAX(CASE WHEN phase = '未引当て' THEN amount ELSE NULL END) AS Phase1,
+    MAX(CASE WHEN phase = '引当て済み' THEN amount ELSE NULL END) AS Phase2,
+    MAX(CASE WHEN phase = '発送済み' THEN amount ELSE NULL END) AS Phase3,
+    from order_by_phase
     group by logi_item_code, jan_code
 ),
 -- RSL在庫数を取得。
@@ -50,7 +50,7 @@ order_including_rsl as (
     from rsl_table
     left join
         hikiate_order
-    on hikiate_order.jan_code = cast(rsl_table.jan_code as INT64)
+    on hikiate_order.jan_code = rsl_table.jan_code
 )
 select
     logi_item_code,

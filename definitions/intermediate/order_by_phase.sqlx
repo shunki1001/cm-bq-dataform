@@ -8,57 +8,50 @@ config {
         }
 }
 
-with order_including_set as(
+with order_comp_flag_true as(
 SELECT
-    -- o.order_number,
+    s.jan_cd,
+    s.component_count,
     o.phase_name,
-    o.item_code,
-    o.attribute1_code,
-    o.attribute1_name,
-    s.comp_item_code,
-    s.comp_item_sku_code,
-    s.comp_zokusei_name,
-    o.amount,
-    cast(s.comp_amount as INT64)*cast(o.amount as INT64) as comp_amount,
-    order_at
-FROM ${ref('latest_order')} o
-left join ${ref('set_item')} s
-    on o.item_code = s.parent_item_code
-    and o.attribute1_name = s.parent_zokusei_name
+    o.order_at
+FROM ${ref('component_item_by_order')} s
+left join ${ref('latest_order')} o
+    on o.order_number = s.order_number
+    and o.line_no = s.line_no
+where o.component_flag = "1"
 ),
-unique_item_order as(
-select
--- order_number,
--- item_code as item_code_order,
-case
-    when comp_item_code is null then concat(item_code, if(attribute1_code = "None", '', attribute1_code))
-    else comp_item_sku_code
-end as cm_item_sku_code,
-ifnull(comp_item_code, item_code) as item_code,
-ifnull(comp_zokusei_name, attribute1_name) as zokusei_name,
-ifnull(comp_amount, cast(amount as INT64)) as amount,
-phase_name,
-order_at
-from
-order_including_set
+order_comp_flag_false  as (
+    select
+        jan_cd,
+        if(attribute1_code = "None", item_code, concat(item_code,attribute1_code)) as cm_item_sku_code,
+        amount,
+        phase_name,
+        order_at
+    from ${ref('latest_order')}
+    where component_flag = "0"
+    and order_at > date(2024,8,1)
 ),
-to_logi_order as (
-select
-    l.logi_item_code,
-    cast(l.jan_code as INTEGER) as jan_code,
-    u.amount,
-    u.phase_name,
-    cast(u.order_at as DATE) as partition_date
-from unique_item_order u
-left join
-    (select
-        * except(cm_item_zokusei_name1), ifnull(cm_item_zokusei_name1, 'None') as cm_zokusei_name
-    from ${ref('rsl_item_master')}) l
-    on u.cm_item_sku_code = l.cm_item_sku_code
-where u.order_at > date(2024,6,1)
-and l.jan_code != "TEST"
+order_comp_flag_false_translate_jan as (
+    select a.* except(cm_item_sku_code)
+    from order_comp_flag_false a
+    left join ${ref('rsl_item_master')} b
+    on a.cm_item_sku_code = b.cm_item_sku_code
+    where b.jan_code is not null
 )
-select * except(amount),
-sum(amount) as amount
-from to_logi_order
-group by logi_item_code, jan_code, phase_name, partition_date
+
+select 
+    rsl.logi_item_code,
+    o.jan_cd as jan_code,
+    cast(o.amount as INTEGER) as amount,
+    o.phase_name,
+    cast(o.order_at as DATE) as partition_date
+from (
+    select *
+    from order_comp_flag_false_translate_jan
+    union all
+    select * 
+    from order_comp_flag_true
+) o
+left join
+${ref('rsl_item_master')} rsl
+on o.jan_cd = rsl.jan_code
