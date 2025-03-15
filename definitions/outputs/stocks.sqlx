@@ -1,0 +1,8 @@
+config {
+  type: "declaration",
+  database: "doctor-ilcsi",
+  schema: "dm_stock_order",
+  name: "stocks",
+}
+
+select 

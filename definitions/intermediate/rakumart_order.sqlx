@@ -1,0 +1,51 @@
+config {
+  type: "table",
+  database: "doctor-ilcsi",
+  schema: "dwh_rakumart",
+  name: "rakumart_order",
+}
+
+with has_order_detail_tag_records as (
+select
+    a.order_sn,
+  case
+    when a.status_name = "采购完了" then "購入完了"
+    when a.status_name = "已取消" then "キャンセル"
+    when a.status_name = "已删除" then "削除"
+    when a.status_name = "出货完成" then "発送完了"
+    else a.status_name end as status,
+  a.created_at as order_at,
+  d.value,
+  t.goods_no,
+from 
+  ${ref('dl_rakumart', 'orders')} AS a,
+  UNNEST(order_detail) AS od,
+  UNNEST(od.detail) AS d WITH OFFSET AS d_offset,
+  UNNEST(od.order_detail_tag) AS t WITH OFFSET AS t_offset
+WHERE
+  d_offset = t_offset
+)
+
+select
+    a.order_sn,
+  case
+    when a.status_name = "采购完了" then "購入完了"
+    when a.status_name = "已取消" then "キャンセル"
+    when a.status_name = "已删除" then "削除"
+    when a.status_name = "出货完成" then "発送完了"
+    else a.status_name end as status,
+  a.created_at as order_at,
+  d.value,
+  t.num as order_num,
+  b.goods_no
+from 
+  ${ref('dl_rakumart', 'orders')} AS a,
+  UNNEST(order_detail) AS od,
+  UNNEST(od.detail) AS d WITH OFFSET AS d_offset,
+  UNNEST(od.option) AS t WITH OFFSET AS t_offset
+left join has_order_detail_tag_records b
+on a.order_sn = b.order_sn
+and d.value = b.value
+WHERE
+  d_offset = t_offset
+  and a.order_sn = "2024120311190859-316774"
