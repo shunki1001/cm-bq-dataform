@@ -33,7 +33,7 @@ left join
     std_sku b
 on a.sku_code = b.sku_code
 where
-a.warehouse = "RFC倉庫"
+a.warehouse = "RFC倉庫" and a.created_at = (select max(created_at) from ${ref('dl_boss', 'stocks')})
 ),
 rakumart_hacchu_zan as (
     select
