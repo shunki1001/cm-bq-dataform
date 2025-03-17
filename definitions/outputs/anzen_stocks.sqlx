@@ -1,0 +1,62 @@
+config {
+  type: "table",
+  database: "doctor-ilcsi",
+  schema: "dm_stock_order",
+  name: "anzen_stocks",
+}
+
+with sum_sku as (
+    SELECT sku_code, cast(shop_order_at as DATE) as order_at, sum(order_amount) as order_amount
+    FROM ${ref('dl_boss','orders')}
+    where status not in ('引当キャンセル', '引当対象外')
+    group by sku_code, cast(shop_order_at as DATE)
+),
+std_sku as (
+    SELECT
+     sku_code,stddev(order_amount) as stddev, avg(order_amount) as avg
+    from sum_sku
+    group by sku_code
+),
+hacchu as (
+select
+    a.sku_code,
+    a.item_title,
+    available_stock,
+    hikiate_stock,
+    mihikiate_stock,
+    real_stock_by_warehouse,
+    CAST(2.33*b.stddev*sqrt(30) as INTEGER) as anzen_zaiko,
+    cast(2.33*b.stddev*sqrt(30) + b.avg*30 AS INTEGER) as hacchu_ten
+FROM
+    ${ref('dl_boss', 'stocks')} a
+left join
+    std_sku b
+on a.sku_code = b.sku_code
+where
+a.warehouse = "RFC倉庫"
+),
+rakumart_hacchu_zan as (
+    select
+        b.sku_code,
+        a.order_num,
+        c.send_await_num
+    from
+        ${ref('dwh_rakumart', 'rakumart_order')} a
+    left join
+        ${ref('dwh_rakumart', 'linked_item_spreadsheet')} b
+    on a.order_sn = b.order_sn
+        and a.value = b.value
+    left join
+        ${ref('dwh_rakumart', 'rakumart_stock')} c
+    on a.value = c.value
+    and a.order_sn = c.order_sn
+    where b.sku_code is not null and a.status not in ('発送完了')
+)
+select
+    hacchu.*,
+    rakumart_hacchu_zan.order_num,
+    rakumart_hacchu_zan.send_await_num
+from hacchu
+left join
+rakumart_hacchu_zan
+on hacchu.sku_code = rakumart_hacchu_zan.sku_code
