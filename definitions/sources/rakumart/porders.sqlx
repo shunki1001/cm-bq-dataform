@@ -1,6 +1,6 @@
 config {
   type: "declaration",
   database: "doctor-ilcsi",
-  schema: "dl_spreadsheet",
-  name: "hacchu_view",
+  schema: "dl_rakumart",
+  name: "porders",
 }

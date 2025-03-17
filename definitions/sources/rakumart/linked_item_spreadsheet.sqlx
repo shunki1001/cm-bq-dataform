@@ -1,6 +1,6 @@
 config {
   type: "declaration",
   database: "doctor-ilcsi",
-  schema: "dl_nextengine",
-  name: "old_order_info",
+  schema: "dwh_rakumart",
+  name: "linked_item_spreadsheet",
 }

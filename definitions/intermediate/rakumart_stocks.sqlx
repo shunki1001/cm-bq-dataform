@@ -1,0 +1,18 @@
+config {
+  type: "table",
+  database: "doctor-ilcsi",
+  schema: "dwh_rakumart",
+  name: "rakumart_stock",
+  tags:["rakumart"]
+}
+
+select
+    a.order_sn,
+    current_date('Asia/Tokyo') as report_date,
+    d.value,
+    od.send_success_num,
+    od.send_await_num
+from 
+  ${ref('dl_rakumart', 'stocks')} AS a,
+  UNNEST(order_detail) AS od,
+  UNNEST(od.detail) AS d

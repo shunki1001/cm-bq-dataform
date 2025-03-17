@@ -1,0 +1,31 @@
+config {
+  type: "table",
+  database: "doctor-ilcsi",
+  schema: "dm_stock_order",
+  name: "rakumart",
+}
+
+select
+  a.sku_code,
+  b.order_sn,
+  concat("https://www.rakumart.com/OrderDetails?order_sn=", b.order_sn) as url_href, 
+  b.order_at,
+  b.order_num,
+  c.created_at as shipping_created_at,
+  c.num as shipping_num,
+  d.report_date as warehouse_report_at,
+  d.send_await_num,
+  d.send_success_num
+from
+${ref('dwh_rakumart', 'rakumart_order')} b
+left join
+${ref('dwh_rakumart', 'rakumart_porder')} c
+on b.value = c.value
+left join
+${ref('dwh_rakumart', 'rakumart_stock')} d
+on b.value = d.value
+left join
+${ref('dwh_rakumart', 'linked_item_spreadsheet')} a
+on a.order_sn = b.order_sn
+and a.value = b.value
+where a.sku_code is not null

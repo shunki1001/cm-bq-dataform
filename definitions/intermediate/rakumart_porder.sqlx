@@ -1,0 +1,18 @@
+config {
+  type: "table",
+  database: "doctor-ilcsi",
+  schema: "dwh_rakumart",
+  name: "rakumart_porder",
+  tags:["rakumart"]
+}
+
+select
+    a.porder_sn,
+    a.created_at,
+    od.order_sn,
+    d.value,
+    od.num
+from 
+  ${ref('dl_rakumart', 'porders')} AS a,
+  UNNEST(porder_detail) AS od,
+  UNNEST(od.detail) AS d
