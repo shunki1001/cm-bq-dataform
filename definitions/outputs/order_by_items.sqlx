@@ -6,12 +6,12 @@ config {
 }
 
 SELECT
-  DATE_TRUNC(shop_order_at, month) as order_month,
+  DATE_TRUNC(parse_datetime('%Y/%m/%d %H:%M:%S', shop_order_at), month) as order_month,
   sku_code,
   SUM(order_amount) as sum_order_amount
 FROM
   ${ref('dl_boss', 'orders')}
 where status not in ('引当キャンセル', '引当対象外')
 GROUP BY
-  DATE_TRUNC(shop_order_at, month),
+  DATE_TRUNC(parse_datetime('%Y/%m/%d %H:%M:%S', shop_order_at), month),
   sku_code

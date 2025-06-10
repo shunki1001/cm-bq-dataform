@@ -6,10 +6,10 @@ config {
 }
 
 with sum_sku as (
-    SELECT sku_code, cast(shop_order_at as DATE) as order_at, sum(order_amount) as order_amount
+    SELECT sku_code, DATE(parse_datetime('%Y/%m/%d %H:%M:%S', shop_order_at)) as order_at, sum(order_amount) as order_amount
     FROM ${ref('dl_boss','orders')}
     where status not in ('引当キャンセル', '引当対象外')
-    group by sku_code, cast(shop_order_at as DATE)
+    group by sku_code, DATE(parse_datetime('%Y/%m/%d %H:%M:%S', shop_order_at))
 ),
 std_sku as (
     SELECT
