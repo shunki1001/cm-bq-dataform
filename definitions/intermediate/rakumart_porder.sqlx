@@ -9,6 +9,8 @@ config {
 select
     a.porder_sn,
     a.created_at,
+    a.status_name,
+    a.receiver.address,
     od.order_sn,
     d.value,
     od.num
