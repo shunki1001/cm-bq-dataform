@@ -1,0 +1,23 @@
+config {
+  type: "table",
+  database: "doctor-ilcsi",
+  schema: "dm_innovation",
+  name: "innovation_shipping",
+  tags:["rakumart"]
+}
+
+WITH ranked_shipping_status AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER(PARTITION BY porder_sn, order_sn, sku_code ORDER BY updated_at ASC) as rank_num
+  FROM
+    ${ref('innovation_porder')}
+  WHERE
+    status_name = '已发货'
+)
+SELECT
+  * EXCEPT(rank_num)
+FROM
+  ranked_shipping_status
+WHERE
+  rank_num = 1

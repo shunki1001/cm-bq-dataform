@@ -1,0 +1,21 @@
+config {
+  type: "incremental",
+  database: "doctor-ilcsi",
+  schema: "dwh_rakumart",
+  name: "innovation_porder",
+  tags:["rakumart"]
+}
+
+select
+    current_date('Asia/Tokyo') as updated_at,
+    created_at,
+    porder_sn,
+    order_sn,
+    status_name,
+    value as sku_code,
+    num
+from 
+  ${ref('dwh_rakumart', 'rakumart_porder')}
+where
+    value not like "%透明%"
+    and address like "%270-0202%"
