@@ -16,7 +16,8 @@ WITH ranked_shipping_status AS (
     status_name = '已发货'
 )
 SELECT
-  * EXCEPT(rank_num)
+  * EXCEPT(rank_num, order_sn, sorting),
+  concat(order_sn, cast(sorting as STRING)) as order_sn
 FROM
   ranked_shipping_status
 WHERE

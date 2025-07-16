@@ -12,6 +12,7 @@ select
     a.status_name,
     a.receiver.address,
     od.order_sn,
+    od.sorting,
     d.value,
     od.num
 from 

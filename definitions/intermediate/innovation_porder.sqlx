@@ -11,6 +11,7 @@ select
     created_at,
     porder_sn,
     order_sn,
+    sorting,
     status_name,
     value as sku_code,
     num
